@@ -1,15 +1,5 @@
 from tinygrad import Tensor, nn
 
-class PatchEmbedding:
-  def __init__(self,
-               patch_size=2,
-               in_channels=1,
-               embed_dim=8):
-    self.proj = nn.Conv2d(
-        in_channels, embed_dim, kernel_size=patch_size, stride=patch_size)
-
-  def __call__(self, x):
-    return self.proj(x).rearrange("b c h w -> b (h w) c")
 
 
 # https://github.com/tinygrad/tinygrad/blob/773d5b60bfb83411993c7b499413e42e7fc43dbd/extra/models/transformer.py
@@ -58,27 +48,34 @@ class TransformerBlock:
     return x
 
 
+class PatchEmbedding:
+  def __init__(self, patch_size=2, in_channels=1, embed_dim=8):
+    self.proj = nn.Conv2d(in_channels, embed_dim, kernel_size=patch_size, stride=patch_size)
+
+  def __call__(self, x):
+    return self.proj(x).rearrange("b c h w -> b (h w) c")
+
 class VITVAE:
   def __init__(self,
                img_size=(28,28),
                patch_size=2,
                in_channels=1,
-               embed_dim=8,
+               embed_dim=28,
                enc_depth=4,
                dec_depth=4*2,
                latent_dim=8,
                num_heads=2):
     self.img_size = img_size 
     self.patch_size = patch_size
-    self.grid_size = (img_size[0]//patch_size, img_size[1]//patch_size) # not general
+    self.grid_size = (img_size[0]//patch_size, img_size[1]//patch_size)
     self.img_size = img_size
     self.num_patches = self.grid_size[0] * self.grid_size[1]
     
     self.patch_embed = PatchEmbedding(patch_size, in_channels, embed_dim)
-    self.encoder = [TransformerBlock(embed_dim, num_heads) for _ in range(enc_depth)]
+    self.encoder = [TransformerBlock(embed_dim,num_heads) for _ in range(enc_depth)]
     self.to_latent = nn.Linear(embed_dim, 2*latent_dim)
     self.from_latent = nn.Linear(latent_dim, embed_dim)
-    self.decoder = [TransformerBlock(embed_dim, num_heads) for _ in range(dec_depth)]
+    self.decoder = [TransformerBlock(embed_dim,num_heads) for _ in range(dec_depth)]
     self.final_proj = nn.Linear(embed_dim, patch_size * patch_size * in_channels)
   
   def encode(self, x):
